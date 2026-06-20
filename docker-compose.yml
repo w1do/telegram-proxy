@@ -1,0 +1,24 @@
+services:
+  telegram-proxy:
+    build: .
+    container_name: telegram-proxy
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - PROXY_HOST=gate.node-proxy.com
+      - PROXY_PORT=10000
+      - PROXY_USER=api6427e610fa202b13_c_US_s_1
+      - PROXY_PASS=aepKxOZdTRMDH3XC
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  dokploy-network:
+    external: true
