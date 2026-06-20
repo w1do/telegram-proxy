@@ -1,21 +1,17 @@
 services:
   telegram-proxy:
-    image: node:18-alpine
+    build: .
     container_name: telegram-proxy
     restart: always
-    working_dir: /app
-    volumes:
-      - ./tg.js:/app/tg.js
-    command: >
-      sh -c "npm install express axios https-proxy-agent && node tg.js"
     ports:
-      - "3008:3000"
+      - "3001:3000"
     environment:
       - PORT=3000
       - PROXY_HOST=gate.node-proxy.com
       - PROXY_PORT=10000
       - PROXY_USER=api6427e610fa202b13_c_US_s_1
       - PROXY_PASS=aepKxOZdTRMDH3XC
+      - NODE_ENV=production
     networks:
       - dokploy-network
 
