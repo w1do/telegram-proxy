@@ -2,18 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Копируем package.json и package-lock.json (если есть)
 COPY package*.json ./
-
-# Устанавливаем зависимости
 RUN npm install --production && npm cache clean --force
 
-# Копируем ВСЕ файлы проекта
-COPY . .
-
-# Убеждаемся, что tg.js существует
-RUN ls -la /app/
+# Копируем с правильным расширением
+COPY tg.mjs ./
 
 EXPOSE 3000
 
-CMD ["node", "tg.js"]
+CMD ["node", "tg.mjs"]

@@ -1,4 +1,11 @@
 {
+  "name": "telegram-proxy",
+  "version": "1.0.0",
+  "description": "Telegram API proxy with authentication",
+  "main": "tg.js",
+  "scripts": {
+    "start": "node tg.js"
+  },
   "dependencies": {
     "axios": "^1.18.0",
     "express": "^5.2.1",

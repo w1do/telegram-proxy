@@ -1,9 +1,10 @@
-const express = require('express');
-const axios = require('axios');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+import express from 'express';
+import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
 
 // Настройка вашего прокси
 const proxyUrl = 'http://api6427e610fa202b13_c_US_s_1:aepKxOZdTRMDH3XC@gate.node-proxy.com:10000';
