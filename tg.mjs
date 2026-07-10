@@ -72,7 +72,13 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
             url: url,
             httpsAgent: agent,
             proxy: false, // Отключаем встроенную поддержку прокси axios
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                // Принудительно передаем Proxy-Authorization если есть данные
+                ...(PROXY_USER && PROXY_PASS ? {
+                    'Proxy-Authorization': `Basic ${Buffer.from(`${PROXY_USER}:${PROXY_PASS}`).toString('base64')}`
+                } : {})
+            },
             timeout: 30000,
             params: req.query
         };
@@ -91,6 +97,7 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
             // Если прокси вернул 407, выводим заголовки для отладки
             if (error.response.status === 407) {
                 console.error('📋 Proxy-Authenticate:', error.response.headers['proxy-authenticate']);
+                console.error('📋 Sent Proxy-Authorization:', config.headers['Proxy-Authorization'] ? 'Yes' : 'No');
             }
             res.status(error.response.status).json(error.response.data);
         } else if (error.request) {
