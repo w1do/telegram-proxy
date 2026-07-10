@@ -53,6 +53,8 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
         const [, token, method] = req.path.match(/^\/bot\/?([^\/]+)\/(.+)$/);
         const url = `https://api.telegram.org/bot${token}/${method}`;
 
+        const { host, ...forwardHeaders } = req.headers;
+
         const response = await axios({
             method: req.method,
             url,
@@ -61,8 +63,9 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
             data: ['POST', 'PUT', 'PATCH'].includes(req.method) ? req.body : undefined,
             params: req.query,
             headers: {
-                ...req.headers,
-                'Content-Type': 'application/json'
+                ...forwardHeaders,
+                'Content-Type': 'application/json',
+                'Host': 'api.telegram.org'
             },
             timeout: 30000
         });
