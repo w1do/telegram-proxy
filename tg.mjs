@@ -69,6 +69,11 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
     }
 });
 
+app.use((req, res, next) => {
+    console.log("INCOMING REQUEST:", req.method, req.url);
+    next();
+});
+
 // Прокси для n8n
 const n8nTarget = process.env.N8N_TARGET || 'http://n8n:5678';
 
