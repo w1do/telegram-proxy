@@ -1,18 +1,30 @@
 import express from 'express';
 import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import 'dotenv/config';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Настройка прокси
-const PROXY_HOST = process.env.PROXY_HOST || 'gate.node-proxy.com';
-const PROXY_PORT = process.env.PROXY_PORT || '10000';
-const PROXY_USER = process.env.PROXY_USER || 'api6427e610fa202b13_c_US_s_1';
-const PROXY_PASS = process.env.PROXY_PASS || 'aepKxOZdTRMDH3XC';
+const PROXY_HOST = process.env.PROXY_HOST;
+const PROXY_PORT = process.env.PROXY_PORT;
+const PROXY_USER = process.env.PROXY_USER;
+const PROXY_PASS = process.env.PROXY_PASS;
 
-const proxyUrl = `http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}`;
-const agent = new HttpsProxyAgent(proxyUrl);
+let agent = null;
+let proxyUrl = 'none';
+
+if (PROXY_HOST && PROXY_PORT) {
+    const auth = (PROXY_USER && PROXY_PASS) 
+        ? `${encodeURIComponent(PROXY_USER)}:${encodeURIComponent(PROXY_PASS)}@` 
+        : '';
+    
+    proxyUrl = `http://${auth}${PROXY_HOST}:${PROXY_PORT}`;
+    agent = new HttpsProxyAgent(proxyUrl);
+} else {
+    console.warn('⚠️ PROXY_HOST or PROXY_PORT is not defined. Running without proxy.');
+}
 
 // Middleware
 app.use(express.json());
@@ -20,7 +32,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Логирование
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    });
     next();
 });
 
@@ -51,15 +67,11 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
         const method = match[2];
         const url = `https://api.telegram.org/bot${token}/${method}`;
 
-        console.log(`🔗 Проксируем: ${url}`);
-        console.log(`📦 Метод: ${req.method}`);
-        console.log(`📦 Параметры:`, req.query);
-        console.log(`📦 Тело:`, req.body);
-
         const config = {
             method: req.method,
             url: url,
             httpsAgent: agent,
+            proxy: false, // Отключаем встроенную поддержку прокси axios
             headers: { 'Content-Type': 'application/json' },
             timeout: 30000,
             params: req.query
@@ -70,13 +82,16 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
         }
 
         const response = await axios(config);
-        console.log(`✅ Статус: ${response.status}`);
         res.json(response.data);
 
     } catch (error) {
         console.error(`❌ Ошибка:`, error.message);
 
         if (error.response) {
+            // Если прокси вернул 407, выводим заголовки для отладки
+            if (error.response.status === 407) {
+                console.error('📋 Proxy-Authenticate:', error.response.headers['proxy-authenticate']);
+            }
             res.status(error.response.status).json(error.response.data);
         } else if (error.request) {
             res.status(502).json({
