@@ -91,16 +91,59 @@ app.use((req, res, next) => {
 // Прокси для n8n
 const n8nTarget = process.env.N8N_TARGET || 'https://n8n.w1do.ru';
 
-app.use(['/webhook', '/webhook-test'], createProxyMiddleware({
+app.use('/webhook', createProxyMiddleware({
     target: n8nTarget,
     changeOrigin: true,
     secure: false,
     xfwd: true,
-
+    pathRewrite: (path, req) => {
+        return '/webhook' + path;
+    },
     on: {
         proxyReq: (proxyReq, req) => {
 
             console.log('========== WEBHOOK ==========');
+            console.log(req.method, req.originalUrl);
+
+            console.log('HEADERS:');
+            console.log(req.headers);
+
+            // сохраняем telegram secret если есть
+            if (req.headers['x-telegram-bot-api-secret-token']) {
+                proxyReq.setHeader(
+                    'x-telegram-bot-api-secret-token',
+                    req.headers['x-telegram-bot-api-secret-token']
+                );
+            }
+
+            console.log('============================');
+        },
+
+        proxyRes: (proxyRes) => {
+            console.log(
+                '[N8N RESPONSE]',
+                proxyRes.statusCode
+            );
+        },
+
+        error: (err) => {
+            console.error('[PROXY ERROR]', err);
+        }
+    }
+}));
+
+app.use('/webhook-test', createProxyMiddleware({
+    target: n8nTarget,
+    changeOrigin: true,
+    secure: false,
+    xfwd: true,
+    pathRewrite: (path, req) => {
+        return '/webhook-test' + path;
+    },
+    on: {
+        proxyReq: (proxyReq, req) => {
+
+            console.log('========== WEBHOOK-TEST ==========');
             console.log(req.method, req.originalUrl);
 
             console.log('HEADERS:');
