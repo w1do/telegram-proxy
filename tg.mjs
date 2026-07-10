@@ -111,16 +111,12 @@ const HOP_BY_HOP = new Set([
 const forwardToN8n = async (req, res) => {
     const targetUrl = n8nTarget + req.originalUrl;
 
-    // Копируем все заголовки, кроме hop-by-hop и host.
-    const headers = {};
-    for (const [key, value] of Object.entries(req.headers)) {
-        if (!HOP_BY_HOP.has(key.toLowerCase())) headers[key] = value;
-    }
-    // Явно гарантируем сохранение критичных заголовков Telegram.
+    // Пробрасываем ВСЕ заголовки, полученные от Telegram, как есть
+    // (включая x-telegram-bot-api-secret-token, user-agent, content-type и т.д.).
+    // Меняем только host (на хост n8n) и content-length (пересчитает axios).
+    const headers = { ...req.headers };
+    for (const h of HOP_BY_HOP) delete headers[h];
     headers['host'] = n8nHost;
-    if (req.headers['x-telegram-bot-api-secret-token']) {
-        headers['x-telegram-bot-api-secret-token'] = req.headers['x-telegram-bot-api-secret-token'];
-    }
 
     // Тело — сырой Buffer (или пусто).
     const body = Buffer.isBuffer(req.body) && req.body.length ? req.body : undefined;
