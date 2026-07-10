@@ -16,8 +16,18 @@ const proxyUrl = (PROXY_HOST && PROXY_PORT)
 
 const agent = proxyUrl !== 'direct' ? new HttpsProxyAgent(proxyUrl) : null;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Специальный мидлвар для пропуска body-parser для путей вебхуков n8n
+const skipBodyParserForWebhooks = (req, res, next) => {
+    if (req.path.startsWith('/webhook') || req.path.startsWith('/webhook-test')) {
+        return next();
+    }
+    express.json()(req, res, (err) => {
+        if (err) return next(err);
+        express.urlencoded({ extended: true })(req, res, next);
+    });
+};
+
+app.use(skipBodyParserForWebhooks);
 
 // Логирование запросов
 app.use((req, res, next) => {
@@ -77,12 +87,25 @@ app.use((req, res, next) => {
 // Прокси для n8n
 const n8nTarget = process.env.N8N_TARGET || 'https://n8n.w1do.ru';
 
-app.use(['/webhook', '/webhook-test'], createProxyMiddleware({
+app.use(createProxyMiddleware({
     target: n8nTarget,
     changeOrigin: true,
+    xfwd: true,
+    logger: console,
+    pathFilter: ['/webhook', '/webhook-test'],
     on: {
         proxyReq: (proxyReq, req, res) => {
+            console.log(`[Proxy] Forwarding ${req.method} ${req.originalUrl} to ${n8nTarget}${req.originalUrl}`);
+            // Принудительно устанавливаем полный путь из originalUrl
             proxyReq.path = req.originalUrl;
+        },
+        proxyRes: (proxyRes, req, res) => {
+            if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400) {
+                console.log(`[Proxy] Redirect detected: ${proxyRes.statusCode} to ${proxyRes.headers.location}`);
+            }
+        },
+        error: (err, req, res) => {
+            console.error('[Proxy] Error:', err);
         }
     }
 }));
