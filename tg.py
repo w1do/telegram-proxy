@@ -101,9 +101,15 @@ async def health_check():
 # Проксирование запросов к Telegram Bot API
 #   /bot/<TOKEN>/<METHOD>  ->  https://api.telegram.org/bot<TOKEN>/<METHOD>
 # ============================================================
-@app.api_route("/bot/{token:path}/{method:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def proxy_to_telegram(token: str, method: str, request: Request):
+@app.api_route("/bot{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_to_telegram(rest: str, request: Request):
     try:
+        # rest выглядит как "<TOKEN>/<METHOD>" (слэша после "bot" нет).
+        # Убираем возможный ведущий слэш и делим по первому "/".
+        rest = rest.lstrip('/')
+        if '/' not in rest:
+            return JSONResponse(status_code=404, content={"error": "Not found"})
+        token, method = rest.split('/', 1)
         url = f"https://api.telegram.org/bot{token}/{method}"
 
         # Получаем тело запроса
