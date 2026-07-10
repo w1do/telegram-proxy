@@ -6,31 +6,19 @@ import 'dotenv/config';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Настройка прокси
-const PROXY_HOST = process.env.PROXY_HOST || '77.110.123.52';
-const PROXY_PORT = process.env.PROXY_PORT || '8080';
-const PROXY_USER = process.env.PROXY_USER || 'w1do';
-const PROXY_PASS = process.env.PROXY_PASS || 'w1do';
+// Конфигурация прокси
+const { PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS } = process.env;
 
-let agent = null;
-let proxyUrl = 'none';
+const proxyUrl = (PROXY_HOST && PROXY_PORT)
+    ? `http://${PROXY_USER && PROXY_PASS ? `${encodeURIComponent(PROXY_USER)}:${encodeURIComponent(PROXY_PASS)}@` : ''}${PROXY_HOST}:${PROXY_PORT}`
+    : 'direct';
 
-if (PROXY_HOST && PROXY_PORT) {
-    const auth = (PROXY_USER && PROXY_PASS) 
-        ? `${encodeURIComponent(PROXY_USER)}:${encodeURIComponent(PROXY_PASS)}@` 
-        : '';
-    
-    proxyUrl = `http://${auth}${PROXY_HOST}:${PROXY_PORT}`;
-    agent = new HttpsProxyAgent(proxyUrl);
-} else {
-    console.warn('⚠️ PROXY_HOST or PROXY_PORT is not defined. Running without proxy.');
-}
+const agent = proxyUrl !== 'direct' ? new HttpsProxyAgent(proxyUrl) : null;
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Логирование
+// Логирование запросов
 app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
@@ -44,88 +32,48 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
     res.json({
         status: 'ok',
-        message: 'Telegram proxy is running',
         proxy: proxyUrl.replace(/:.+@/, ':****@')
     });
 });
 
-// ============================================================
-// ЕДИНЫЙ ОБРАБОТЧИК ДЛЯ ВСЕХ /bot... ЗАПРОСОВ (через регулярку)
-// ============================================================
+// Проксирование запросов к Telegram
 app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
     try {
-        // Извлекаем токен и метод из URL
-        const match = req.path.match(/^\/bot\/?([^\/]+)\/(.+)$/);
-        if (!match) {
-            return res.status(400).json({
-                error: 'Invalid path',
-                message: 'Expected /bot/TOKEN/METHOD or /botTOKEN/METHOD'
-            });
-        }
-
-        const token = match[1];
-        const method = match[2];
+        const [, token, method] = req.path.match(/^\/bot\/?([^\/]+)\/(.+)$/);
         const url = `https://api.telegram.org/bot${token}/${method}`;
 
-        var config = {
+        const response = await axios({
             method: req.method,
-            url: url,
+            url,
             httpsAgent: agent,
-            proxy: false, // Отключаем встроенную поддержку прокси axios
-            headers: { 
-                'Content-Type': 'application/json',
-                // Принудительно передаем Proxy-Authorization если есть данные
-                ...(PROXY_USER && PROXY_PASS ? {
-                    'Proxy-Authorization': `Basic ${Buffer.from(`${PROXY_USER}:${PROXY_PASS}`).toString('base64')}`
-                } : {})
+            proxy: false,
+            data: ['POST', 'PUT', 'PATCH'].includes(req.method) ? req.body : undefined,
+            params: req.query,
+            headers: {
+                'Content-Type': 'application/json'
             },
-            timeout: 30000,
-            params: req.query
-        };
+            timeout: 30000
+        });
 
-        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
-            config.data = req.body;
-        }
-
-        const response = await axios(config);
         res.json(response.data);
-
     } catch (error) {
-        console.error(`❌ Ошибка:`, error.message);
-
-        if (error.response) {
-            // Если прокси вернул 407, выводим заголовки для отладки
-            if (error.response.status === 407) {
-                console.error('📋 Proxy-Authenticate:', error.response.headers['proxy-authenticate']);
-                // Проверяем существование config перед использованием
-                const sentAuth = (typeof config !== 'undefined' && config.headers && config.headers['Proxy-Authorization']) ? 'Yes' : 'No';
-                console.error('📋 Sent Proxy-Authorization:', sentAuth);
-            }
-            res.status(error.response.status).json(error.response.data);
-        } else if (error.request) {
-            res.status(502).json({
-                error: 'No response from Telegram API',
-                message: error.message
-            });
-        } else {
-            res.status(500).json({
-                error: 'Internal proxy error',
-                message: error.message
-            });
+        const status = error.response?.status || 500;
+        const data = error.response?.data || { error: error.message };
+        
+        if (status >= 500) {
+            console.error(`❌ Error: ${error.message}`);
         }
+        
+        res.status(status).json(data);
     }
 });
 
-// 404 для всего остального
+// 404 для всех остальных путей
 app.use((req, res) => {
-    res.status(404).json({
-        error: 'Not found',
-        message: `Endpoint ${req.url} not found`
-    });
+    res.status(404).json({ error: 'Not found' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Прокси запущен на порту ${PORT}`);
-    console.log(`🌐 Прокси: ${proxyUrl.replace(/:.+@/, ':****@')}`);
-    console.log(`\n📋 Health check: http://localhost:${PORT}/`);
+    console.log(`🚀 Proxy server started on port ${PORT}`);
+    console.log(`🌐 Proxy: ${proxyUrl.replace(/:.+@/, ':****@')}`);
 });
