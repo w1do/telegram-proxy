@@ -3,14 +3,14 @@
 .gitignore
 .gitattributes
 
-# Node.js
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
 
 # Environment
 .env
@@ -48,9 +48,9 @@ Thumbs.db
 
 # Tests
 test/
-__tests__/
-*.test.js
-*.spec.js
+tests/
+test_*.py
+*_test.py
 
 # Documentation
 README.md

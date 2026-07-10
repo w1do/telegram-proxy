@@ -1,14 +1,14 @@
-FROM node:22-alpine
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Копируем package.json и устанавливаем зависимости
-COPY package*.json ./
-RUN npm install --production && npm cache clean --force
+# Копируем зависимости и устанавливаем их
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем файл приложения (с расширением .mjs)
-COPY tg.mjs ./
+# Копируем файл приложения
+COPY tg.py ./
 
 EXPOSE 3000
 
-CMD ["node", "tg.mjs"]
+CMD ["python", "tg.py"]
