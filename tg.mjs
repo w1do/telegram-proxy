@@ -75,7 +75,7 @@ app.use((req, res, next) => {
 });
 
 // Прокси для n8n
-const n8nTarget = process.env.N8N_TARGET || 'http://n8n:5678';
+const n8nTarget = process.env.N8N_TARGET || 'https://n8n.w1do.ru';
 
 app.use(['/webhook', '/webhook-test'], createProxyMiddleware({
     target: n8nTarget,

@@ -9,6 +9,7 @@ services:
       - PROXY_PORT=${PROXY_PORT}
       - PROXY_USER=${PROXY_USER}
       - PROXY_PASS=${PROXY_PASS}
+      - N8N_TARGET=${N8N_TARGET}
       - NODE_ENV=production
     networks:
       - dokploy-network
