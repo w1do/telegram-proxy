@@ -77,20 +77,14 @@ app.use((req, res, next) => {
 // Прокси для n8n
 const n8nTarget = process.env.N8N_TARGET || 'http://n8n:5678';
 
-app.use('/webhook', createProxyMiddleware({
+app.use(['/webhook', '/webhook-test'], createProxyMiddleware({
     target: n8nTarget,
     changeOrigin: true,
-    pathRewrite: {
-        '^/webhook': '/webhook', // Сохраняем префикс
-    },
-}));
-
-app.use('/webhook-test', createProxyMiddleware({
-    target: n8nTarget,
-    changeOrigin: true,
-    pathRewrite: {
-        '^/webhook-test': '/webhook-test', // Сохраняем префикс
-    },
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            proxyReq.path = req.originalUrl;
+        }
+    }
 }));
 
 // 404 для всех остальных путей
