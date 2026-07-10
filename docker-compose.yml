@@ -8,10 +8,10 @@ services:
     #   - "3001:3000"
     environment:
       - PORT=3000
-      - PROXY_HOST=gate.node-proxy.com
-      - PROXY_PORT=10000
-      - PROXY_USER=api6427e610fa202b13_c_US_s_1
-      - PROXY_PASS=aepKxOZdTRMDH3XC
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
       - NODE_ENV=production
     networks:
       - dokploy-network
