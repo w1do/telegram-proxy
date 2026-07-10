@@ -61,6 +61,7 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
             data: ['POST', 'PUT', 'PATCH'].includes(req.method) ? req.body : undefined,
             params: req.query,
             headers: {
+                ...req.headers,
                 'Content-Type': 'application/json'
             },
             timeout: 30000
@@ -87,25 +88,41 @@ app.use((req, res, next) => {
 // Прокси для n8n
 const n8nTarget = process.env.N8N_TARGET || 'https://n8n.w1do.ru';
 
-app.use(createProxyMiddleware({
+app.use(['/webhook', '/webhook-test'], createProxyMiddleware({
     target: n8nTarget,
     changeOrigin: true,
+    secure: false,
     xfwd: true,
-    logger: console,
-    pathFilter: ['/webhook', '/webhook-test'],
+
     on: {
-        proxyReq: (proxyReq, req, res) => {
-            console.log(`[Proxy] Forwarding ${req.method} ${req.originalUrl} to ${n8nTarget}${req.originalUrl}`);
-            // Принудительно устанавливаем полный путь из originalUrl
-            proxyReq.path = req.originalUrl;
-        },
-        proxyRes: (proxyRes, req, res) => {
-            if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400) {
-                console.log(`[Proxy] Redirect detected: ${proxyRes.statusCode} to ${proxyRes.headers.location}`);
+        proxyReq: (proxyReq, req) => {
+
+            console.log('========== WEBHOOK ==========');
+            console.log(req.method, req.originalUrl);
+
+            console.log('HEADERS:');
+            console.log(req.headers);
+
+            // сохраняем telegram secret если есть
+            if (req.headers['x-telegram-bot-api-secret-token']) {
+                proxyReq.setHeader(
+                    'x-telegram-bot-api-secret-token',
+                    req.headers['x-telegram-bot-api-secret-token']
+                );
             }
+
+            console.log('============================');
         },
-        error: (err, req, res) => {
-            console.error('[Proxy] Error:', err);
+
+        proxyRes: (proxyRes) => {
+            console.log(
+                '[N8N RESPONSE]',
+                proxyRes.statusCode
+            );
+        },
+
+        error: (err) => {
+            console.error('[PROXY ERROR]', err);
         }
     }
 }));
