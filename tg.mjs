@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import 'dotenv/config';
 
@@ -67,6 +68,19 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
         res.status(status).json(data);
     }
 });
+
+// Прокси для n8n
+const n8nTarget = process.env.N8N_TARGET || 'http://n8n:5678';
+
+app.use('/webhook', createProxyMiddleware({
+    target: n8nTarget,
+    changeOrigin: true
+}));
+
+app.use('/webhook-test', createProxyMiddleware({
+    target: n8nTarget,
+    changeOrigin: true
+}));
 
 // 404 для всех остальных путей
 app.use((req, res) => {
