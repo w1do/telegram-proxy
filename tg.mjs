@@ -7,10 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Настройка прокси
-const PROXY_HOST = process.env.PROXY_HOST;
-const PROXY_PORT = process.env.PROXY_PORT;
-const PROXY_USER = process.env.PROXY_USER;
-const PROXY_PASS = process.env.PROXY_PASS;
+const PROXY_HOST = process.env.PROXY_HOST || '77.110.123.52';
+const PROXY_PORT = process.env.PROXY_PORT || '8080';
+const PROXY_USER = process.env.PROXY_USER || 'w1do';
+const PROXY_PASS = process.env.PROXY_PASS || 'w1do';
 
 let agent = null;
 let proxyUrl = 'none';
@@ -67,7 +67,7 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
         const method = match[2];
         const url = `https://api.telegram.org/bot${token}/${method}`;
 
-        const config = {
+        var config = {
             method: req.method,
             url: url,
             httpsAgent: agent,
@@ -97,7 +97,9 @@ app.all(/^\/bot\/?([^\/]+)\/(.+)$/, async (req, res) => {
             // Если прокси вернул 407, выводим заголовки для отладки
             if (error.response.status === 407) {
                 console.error('📋 Proxy-Authenticate:', error.response.headers['proxy-authenticate']);
-                console.error('📋 Sent Proxy-Authorization:', config.headers['Proxy-Authorization'] ? 'Yes' : 'No');
+                // Проверяем существование config перед использованием
+                const sentAuth = (typeof config !== 'undefined' && config.headers && config.headers['Proxy-Authorization']) ? 'Yes' : 'No';
+                console.error('📋 Sent Proxy-Authorization:', sentAuth);
             }
             res.status(error.response.status).json(error.response.data);
         } else if (error.request) {
